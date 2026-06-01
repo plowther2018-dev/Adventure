@@ -1,75 +1,50 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import emailjs from "@emailjs/browser";
-import { PartyPopper, Sparkles, CalendarDays, MapPin, Send, Rocket } from "lucide-react";
-
+import {
+  PartyPopper,
+  Sparkles,
+  CalendarDays,
+  MapPin,
+  Send,
+  Rocket,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
 
 const questions = [
   {
     question: "Question 1: Are you free for a little adventure?",
     options: ["Absolutely", "Tell me more", "Only if snacks are involved"],
-    reply: "Excellent. Adventure mode is now loading."
+    reply: "Excellent. Adventure mode is now loading.",
   },
   {
     question: "Question 2: How many will be attending?",
     options: ["1 Adult", "1 Adult + 1 Child"],
-    reply: "Brilliant. The guest list has been updated."
+    reply: "Brilliant. The guest list has been updated.",
   },
   {
-    question: "Question 3: What kind of adventure sounds best?",
+    question: "Question 3: What kind of date sounds best?",
     options: ["Dinner", "Coffee", "Drinks", "Surprise me"],
-    reply: "Strong choice. The planning committee approves."
+    reply: "Strong choice. The planning committee approves.",
   },
   {
     question: "Question 4: Should I dress smart, casual, or dangerously charming?",
     options: ["Smart", "Casual", "Dangerously charming"],
-    reply: "Noted. Outfit strategy is under review."
-  }
+    reply: "Noted. Outfit strategy is under review.",
+  },
 ];
 
-export function buildRsvpSummary(answers, formattedDate, venueSuggestion) {
+function buildRsvpSummary(answers, formattedDate, venueSuggestion) {
   return [
     `Adventure: ${answers[0] || "Not answered"}`,
     `Attending: ${answers[1] || "Not answered"}`,
     `Date type: ${answers[2] || "Not answered"}`,
     `Dress preference: ${answers[3] || "Not answered"}`,
     `Selected date: ${formattedDate || "Not selected"}`,
-    `Venue suggestion: ${venueSuggestion || "No venue suggestion provided"}`
+    `Venue suggestion: ${venueSuggestion || "No venue suggestion provided"}`,
   ].join("\n");
 }
-
-export const rsvpSummaryTestCases = [
-  {
-    name: "formats a completed RSVP summary with new lines",
-    input: {
-      answers: ["Absolutely", "1 Adult + 1 Child", "Dinner", "Smart"],
-      formattedDate: "Friday, 14 June 2026",
-      venueSuggestion: "Somewhere with nice pasta"
-    },
-    expected:
-      "Adventure: Absolutely\n" +
-      "Attending: 1 Adult + 1 Child\n" +
-      "Date type: Dinner\n" +
-      "Dress preference: Smart\n" +
-      "Selected date: Friday, 14 June 2026\n" +
-      "Venue suggestion: Somewhere with nice pasta"
-  },
-  {
-    name: "uses fallback values when fields are missing",
-    input: {
-      answers: [],
-      formattedDate: "",
-      venueSuggestion: ""
-    },
-    expected:
-      "Adventure: Not answered\n" +
-      "Attending: Not answered\n" +
-      "Date type: Not answered\n" +
-      "Dress preference: Not answered\n" +
-      "Selected date: Not selected\n" +
-      "Venue suggestion: No venue suggestion provided"
-  }
-];
 
 export default function AnimatedDateInvite() {
   const [step, setStep] = useState(0);
@@ -80,22 +55,62 @@ export default function AnimatedDateInvite() {
   const [isSending, setIsSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [sendError, setSendError] = useState("");
+  const [musicPlaying, setMusicPlaying] = useState(false);
+  const [musicBlocked, setMusicBlocked] = useState(false);
 
-  // Replace these three values with your own EmailJS details.
-  const EMAILJS_SERVICE_ID = "service_8yfydsh";
-  const EMAILJS_TEMPLATE_ID = "template_ln5386d";
-  const EMAILJS_PUBLIC_KEY = "lQIxdPJHP4H3VV4rG";
+  const audioRef = useRef(null);
 
-  const floatingConfetti = useMemo(() => Array.from({ length: 26 }, (_, i) => i), []);
+  const EMAILJS_SERVICE_ID = "YOUR_SERVICE_ID";
+  const EMAILJS_TEMPLATE_ID = "YOUR_TEMPLATE_ID";
+  const EMAILJS_PUBLIC_KEY = "YOUR_PUBLIC_KEY";
+
+  const floatingConfetti = useMemo(
+    () => Array.from({ length: 26 }, (_, i) => i),
+    []
+  );
 
   const formattedDate = selectedDate
     ? new Date(selectedDate).toLocaleDateString("en-GB", {
         weekday: "long",
         day: "numeric",
         month: "long",
-        year: "numeric"
+        year: "numeric",
       })
     : "";
+
+  useEffect(() => {
+    if (!audioRef.current) return;
+
+    audioRef.current.volume = 0.25;
+
+    audioRef.current
+      .play()
+      .then(() => {
+        setMusicPlaying(true);
+        setMusicBlocked(false);
+      })
+      .catch(() => {
+        setMusicPlaying(false);
+        setMusicBlocked(true);
+      });
+  }, []);
+
+  const toggleMusic = async () => {
+    if (!audioRef.current) return;
+
+    if (audioRef.current.paused) {
+      try {
+        await audioRef.current.play();
+        setMusicPlaying(true);
+        setMusicBlocked(false);
+      } catch {
+        setMusicBlocked(true);
+      }
+    } else {
+      audioRef.current.pause();
+      setMusicPlaying(false);
+    }
+  };
 
   const chooseAnswer = (answer) => {
     const nextAnswers = [...answers, answer];
@@ -118,7 +133,11 @@ export default function AnimatedDateInvite() {
 
     setIsSending(true);
 
-    const fullSummary = buildRsvpSummary(answers, formattedDate, venueSuggestion);
+    const fullSummary = buildRsvpSummary(
+      answers,
+      formattedDate,
+      venueSuggestion
+    );
 
     const templateParams = {
       adventure_answer: answers[0] || "Not answered",
@@ -126,8 +145,9 @@ export default function AnimatedDateInvite() {
       date_type_answer: answers[2] || "Not answered",
       dress_answer: answers[3] || "Not answered",
       selected_date: formattedDate || "Not selected",
-      venue_suggestion: venueSuggestion || "No venue suggestion provided",
-      full_summary: fullSummary
+      venue_suggestion:
+        venueSuggestion || "No venue suggestion provided",
+      full_summary: fullSummary,
     };
 
     try {
@@ -139,8 +159,10 @@ export default function AnimatedDateInvite() {
       );
 
       setSent(true);
-    } catch (error) {
-      setSendError("Sorry, something went wrong while sending. Please try again.");
+    } catch {
+      setSendError(
+        "Sorry, something went wrong while sending. Please try again."
+      );
     } finally {
       setIsSending(false);
     }
@@ -159,13 +181,51 @@ export default function AnimatedDateInvite() {
 
   return (
     <div className="min-h-screen overflow-hidden bg-gradient-to-br from-cyan-100 via-amber-50 to-orange-100 flex items-center justify-center p-6 text-slate-900 relative">
+      <audio ref={audioRef} src="/retro1.mp3" loop preload="auto" />
+
+      <button
+        onClick={toggleMusic}
+        className="fixed top-4 right-4 z-30 rounded-full bg-white/90 p-3 shadow-lg border border-orange-200 hover:bg-orange-50"
+        aria-label="Toggle music"
+      >
+        {musicPlaying ? (
+          <Volume2 className="text-orange-600" size={24} />
+        ) : (
+          <VolumeX className="text-orange-600" size={24} />
+        )}
+      </button>
+
+      {musicBlocked && (
+        <button
+          onClick={toggleMusic}
+          className="fixed top-20 right-4 z-30 rounded-2xl bg-orange-600 text-white px-4 py-2 font-bold shadow-lg"
+        >
+          Tap to start music 🎵
+        </button>
+      )}
+
       {floatingConfetti.map((piece) => (
         <motion.div
           key={piece}
           className="absolute text-orange-400/50"
-          initial={{ y: "-10vh", x: `${Math.random() * 100}vw`, opacity: 0, rotate: 0, scale: 0.7 }}
-          animate={{ y: "110vh", opacity: [0, 1, 1, 0], rotate: 360, scale: [0.7, 1.15, 0.9] }}
-          transition={{ duration: 7 + Math.random() * 6, repeat: Infinity, delay: Math.random() * 7 }}
+          initial={{
+            y: "-10vh",
+            x: `${Math.random() * 100}vw`,
+            opacity: 0,
+            rotate: 0,
+            scale: 0.7,
+          }}
+          animate={{
+            y: "110vh",
+            opacity: [0, 1, 1, 0],
+            rotate: 360,
+            scale: [0.7, 1.15, 0.9],
+          }}
+          transition={{
+            duration: 7 + Math.random() * 6,
+            repeat: Infinity,
+            delay: Math.random() * 7,
+          }}
         >
           {piece % 2 === 0 ? (
             <PartyPopper size={16 + Math.random() * 18} />
@@ -185,7 +245,9 @@ export default function AnimatedDateInvite() {
           <div className="p-8 md:p-12">
             <div className="flex items-center justify-center gap-2 mb-6 text-orange-600">
               <PartyPopper className="animate-bounce" />
-              <span className="font-bold tracking-wide uppercase text-sm">You’ve unlocked an invitation</span>
+              <span className="font-bold tracking-wide uppercase text-sm">
+                Adventure Invite 🎉
+              </span>
               <Sparkles className="animate-pulse" />
             </div>
 
@@ -200,7 +262,7 @@ export default function AnimatedDateInvite() {
                   className="text-center"
                 >
                   <motion.h1
-                    className="text-3xl md:text-5xl font-bold mb-4 leading-tight"
+                    className="text-3xl md:text-5xl font-black mb-4 leading-tight"
                     initial={{ scale: 0.95 }}
                     animate={{ scale: 1 }}
                   >
@@ -239,7 +301,11 @@ export default function AnimatedDateInvite() {
                     {questions.map((_, index) => (
                       <div
                         key={index}
-                        className={`h-2.5 rounded-full transition-all ${index === step ? "w-8 bg-orange-500" : "w-2.5 bg-orange-200"}`}
+                        className={`h-2.5 rounded-full transition-all ${
+                          index === step
+                            ? "w-8 bg-orange-500"
+                            : "w-2.5 bg-orange-200"
+                        }`}
                       />
                     ))}
                   </div>
@@ -255,18 +321,23 @@ export default function AnimatedDateInvite() {
                   <motion.div
                     initial={{ rotate: -8, scale: 0 }}
                     animate={{ rotate: 0, scale: 1 }}
-                    transition={{ type: "spring", stiffness: 170, damping: 10 }}
+                    transition={{
+                      type: "spring",
+                      stiffness: 170,
+                      damping: 10,
+                    }}
                     className="mx-auto mb-6 w-20 h-20 rounded-full bg-orange-500 flex items-center justify-center text-white shadow-xl"
                   >
                     <Rocket size={42} />
                   </motion.div>
 
                   <h1 className="text-4xl md:text-6xl font-black mb-4 bg-gradient-to-r from-orange-600 via-fuchsia-600 to-cyan-600 bg-clip-text text-transparent">
-                    Alright… lets make this official? 😎
+                    Alright… fancy making this official? 😎
                   </h1>
 
                   <p className="text-lg text-slate-600 mb-8">
-                    Based on your highly scientific answers, this plan has serious potential.
+                    Based on your highly scientific answers, this plan has
+                    serious potential.
                   </p>
 
                   <div className="grid md:grid-cols-2 gap-4 text-left mb-8">
@@ -274,11 +345,15 @@ export default function AnimatedDateInvite() {
                       <CalendarDays className="text-orange-500 mt-1" />
                       <div className="w-full">
                         <p className="font-bold">When</p>
-                        <p className="text-slate-600 mb-3">Pick a date that suits you</p>
+                        <p className="text-slate-600 mb-3">
+                          Pick a date that suits you
+                        </p>
                         <input
                           type="date"
                           value={selectedDate}
-                          onChange={(event) => setSelectedDate(event.target.value)}
+                          onChange={(event) =>
+                            setSelectedDate(event.target.value)
+                          }
                           className="w-full rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-slate-700 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
                         />
                         {selectedDate && (
@@ -294,11 +369,14 @@ export default function AnimatedDateInvite() {
                       <div className="w-full">
                         <p className="font-bold">Where</p>
                         <p className="text-slate-600 mb-3">
-                          If you have any preferences or suggestions on venue please let me know
+                          If you have any preferences or suggestions on venue
+                          please let me know
                         </p>
                         <textarea
                           value={venueSuggestion}
-                          onChange={(event) => setVenueSuggestion(event.target.value)}
+                          onChange={(event) =>
+                            setVenueSuggestion(event.target.value)
+                          }
                           placeholder="Dinner spot, coffee place, cocktails, hidden gem..."
                           rows={4}
                           className="w-full rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-slate-700 outline-none resize-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
@@ -341,9 +419,17 @@ export default function AnimatedDateInvite() {
                       className="rounded-2xl px-6 py-4 text-base bg-orange-600 hover:bg-orange-700 disabled:opacity-60 font-bold border-b-4 border-orange-800 text-white inline-flex items-center justify-center"
                     >
                       <Send className="mr-2" size={18} />
-                      {isSending ? "Sending..." : sent ? "Sent 🚀" : "Yes, obviously"}
+                      {isSending
+                        ? "Sending..."
+                        : sent
+                        ? "Sent 🚀"
+                        : "Yes, obviously"}
                     </button>
-                    <button onClick={restart} className="rounded-2xl px-6 py-4 text-base border border-orange-300 font-bold bg-white hover:bg-orange-50">
+
+                    <button
+                      onClick={restart}
+                      className="rounded-2xl px-6 py-4 text-base border border-orange-300 font-bold bg-white hover:bg-orange-50"
+                    >
                       Replay invite
                     </button>
                   </div>
